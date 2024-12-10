@@ -1,4 +1,5 @@
 from collections import deque
+import time
 from line_profiler import profile
 
 def create_large_deque(n):
@@ -87,7 +88,10 @@ if __name__ == '__main__':
     for approach in approaches:
         dq = create_large_deque(n)
         print(f"Length of deque before {approach.__name__}: {len(dq)}")
+        start = time.time()
         q,r = approach(dq,n)
+        duration = time.time() - start
         print(f"Length of deque after {approach.__name__}: {len(dq)}")
         print(f"q: {q}, r: {r}")
+        print(f"Duration for {approach.__name__}: {duration:.4f}")
         print("")

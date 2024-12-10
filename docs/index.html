@@ -14,27 +14,12 @@
     </p>
     <pre>
         <code id="py_list_sum" class="language-python">
-            # Timing wrapper
-            from functools import wraps
-            from time import time
-
-            def timing(rep):
-                def decorator(f):
-                    @wraps(f)
-                    def wrap(*args, **kw):
-                        ts = time()
-                        for _ in range(rep):
-                            result = f(*args, **kw)
-                        te = time()
-                        return f"{f.__name__} took {te-ts:2.4f} sec for {rep} iterations, outputting: {result}",result
-                    return wrap
-                return decorator
-
+            import time
             from collections import deque
+
             def create_large_deque(n):
                 return deque(zip(range(n), range(n)))
 
-            @timing(rep=100)
             def original_loop(pos_mapping, threshold):
                 r_idx = None
                 q_idx = None
@@ -43,7 +28,6 @@
 
                 return q_idx, r_idx
 
-            @timing(rep=100)
             def original_loop_no_len(pos_mapping, threshold):
                 # can test if the deque is empty directly without len
                 r_idx = None
@@ -53,7 +37,6 @@
 
                 return q_idx, r_idx
 
-            @timing(rep=1000)
             def clean_while(pos_mapping, threshold):
                 r_idx = None
                 q_idx = None
@@ -63,20 +46,33 @@
                         break
 
                 return q_idx, r_idx
+            
+            def walrus_iter(pos_mapping, threshold):
+                it = (qr for _ in range(len(pos_mapping)-1) if (qr:=pos_mapping.popleft())[1] >= threshold)
+            
+                q_idx, r_idx = next(it, (None, None))
+            
+                if q_idx is None and r_idx is None and pos_mapping:
+                    q_idx, r_idx = pos_mapping.popleft()
+            
+                return q_idx, r_idx
 
             # START
-            n = 5_000
-            approaches = [original_loop, original_loop_no_len, clean_while]
+            n = 15_000_000
+            approaches = [original_loop, original_loop_no_len, clean_while, walrus_iter]
 
+            results = []
             for approach in approaches:
                 dq = create_large_deque(n)
-                print(f"Length of deque before {approach.__name__}: {len(dq)}")
-                timing_str,(q,r) = approach(dq,n)
-                print(f"Length of deque after {approach.__name__}: {len(dq)}")
+                start = time.time()
+                q,r = approach(dq,n)
+                duration = time.time() - start
                 print(f"q: {q}, r: {r}")
-                print(timing_str)
                 print("")
 
+                results.append((approach.__name__, q, r, duration))
+
+            results
         </code>
     </pre>
     <button onclick="evaluatePython('py_list_sum')">Run</button>
