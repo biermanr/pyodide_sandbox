@@ -1,2 +1,117 @@
-<h1> Hello World </h1>
-<h2> Testing pages </h2>
+<!doctype html>
+<html>
+  <head>
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script>hljs.highlightAll();</script>
+  </head>
+
+  <body>
+    <p>
+      You can execute any Python code. Just enter something in the box below and
+      click the button.
+    </p>
+    <pre>
+        <code id="py_list_sum" class="language-python">
+            # Timing wrapper
+            from functools import wraps
+            from time import time
+
+            def timing(rep):
+                def decorator(f):
+                    @wraps(f)
+                    def wrap(*args, **kw):
+                        ts = time()
+                        for _ in range(rep):
+                            result = f(*args, **kw)
+                        te = time()
+                        return f"{f.__name__} took {te-ts:2.4f} sec for {rep} iterations, outputting: {result}",result
+                    return wrap
+                return decorator
+
+            from collections import deque
+            def create_large_deque(n):
+                return deque(zip(range(n), range(n)))
+
+            @timing(rep=100)
+            def original_loop(pos_mapping, threshold):
+                r_idx = None
+                q_idx = None
+                while (r_idx is None or r_idx < threshold) and len(pos_mapping) > 0:
+                    q_idx, r_idx = pos_mapping.popleft()
+
+                return q_idx, r_idx
+
+            @timing(rep=100)
+            def original_loop_no_len(pos_mapping, threshold):
+                # can test if the deque is empty directly without len
+                r_idx = None
+                q_idx = None
+                while (r_idx is None or r_idx < threshold) and pos_mapping:
+                    q_idx, r_idx = pos_mapping.popleft()
+
+                return q_idx, r_idx
+
+            @timing(rep=1000)
+            def clean_while(pos_mapping, threshold):
+                r_idx = None
+                q_idx = None
+                while pos_mapping:
+                    q_idx, r_idx = pos_mapping.popleft()
+                    if r_idx > threshold:
+                        break
+
+                return q_idx, r_idx
+
+            # START
+            n = 5_000
+            approaches = [original_loop, original_loop_no_len, clean_while]
+
+            for approach in approaches:
+                dq = create_large_deque(n)
+                print(f"Length of deque before {approach.__name__}: {len(dq)}")
+                timing_str,(q,r) = approach(dq,n)
+                print(f"Length of deque after {approach.__name__}: {len(dq)}")
+                print(f"q: {q}, r: {r}")
+                print(timing_str)
+                print("")
+
+        </code>
+    </pre>
+    <button onclick="evaluatePython('py_list_sum')">Run</button>
+    <br />
+    <br />
+    <div>Output:</div>
+    <textarea id="output" style="width: 100%;" rows="6" disabled></textarea>
+
+    <script>
+      const output = document.getElementById("output");
+
+      function addToOutput(code, result) {
+        //output.value += ">>>" + code + "\n" + result + "\n";
+        output.value += ">>>" + "\n" + result + "\n";
+      }
+
+      output.value = "Initializing...\n";
+      // init Pyodide
+      async function main() {
+        let pyodide = await loadPyodide();
+        output.value += "Ready!\n";
+        return pyodide;
+      }
+      let pyodideReadyPromise = main();
+
+      async function evaluatePython(element_id) {
+        const code = document.getElementById(element_id).textContent;
+        let pyodide = await pyodideReadyPromise;
+        let namespace = pyodide.toPy({ x: 2, y: [1, 2, 3] });
+        try {
+          addToOutput(code, pyodide.runPython(code, { globals: namespace }));
+        } catch (err) {
+          addToOutput(code, err);
+        }
+      }
+    </script>
+  </body>
+</html>
